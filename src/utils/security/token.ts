@@ -115,10 +115,14 @@ export const decodeToken = async ({
   tokenType?: TokenEnum;
 }) => {
   const userModel = new UserRepository(UserModel);
+
   const tokenModel = new TokenRepository(TokenModel);
+
   const [bearerKey, token] = authorization.split(" ");
 
-  if (!bearerKey || !token) throw new NotAuthorizedError("Missing token parts");
+  if (!bearerKey || !token) {
+    throw new NotAuthorizedError("Missing token parts");
+  }
 
   const signatures = await getSignature(bearerKey as SignatureEnumLevels);
 
@@ -129,18 +133,39 @@ export const decodeToken = async ({
         ? signatures.refresh_signature
         : signatures.access_signature,
   });
-  if (!decode.id || !decode.iat) throw new BadRequestError("Invalid payload");
+
+  if (!decode.id || !decode.iat) {
+    throw new BadRequestError("Invalid payload");
+  }
+
   const oldToken = await tokenModel.findOne({
-    filter: { jti: decode.jti as string },
+    filter: {
+      jti: decode.jti as string,
+    },
   });
 
-  if (oldToken) throw new BadRequestError("Invalid or Old token");
-  const user = await userModel.findOne({ filter: { _id: decode.id } });
-  if (!user) throw new BadRequestError("Not register account");
+  if (oldToken) {
+    throw new BadRequestError("Invalid or Old token");
+  }
 
-  if (user.changedCredentialsAt?.getTime() || 0 > decode.iat * 1000)
+  const user = await userModel.findOne({
+    filter: {
+      _id: decode.id,
+    },
+  });
+
+  if (!user) {
+    throw new BadRequestError("Not register account");
+  }
+
+  if ((user.changedCredentialsAt?.getTime() || 0) > decode.iat * 1000) {
     throw new NotAuthorizedError("invalid or old credentials");
-  return { user, decode };
+  }
+
+  return {
+    user,
+    decode,
+  };
 };
 
 export const createRevokeToken = async (decode: JwtPayload) => {

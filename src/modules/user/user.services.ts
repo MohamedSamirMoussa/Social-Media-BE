@@ -64,12 +64,12 @@ class UserServices {
 
     res.cookie("refresh_token", refresh_token, {
       ...baseCookieOptions,
-      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT),
+      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT) * 1000,
     });
 
     res.cookie("signature_level", signatureLevel, {
       ...baseCookieOptions,
-      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT),
+      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT) * 1000,
     });
   }
 
