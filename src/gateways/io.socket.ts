@@ -1,6 +1,6 @@
 import { Server as HttpServer } from "http";
 import { Socket, Server } from "socket.io";
-import { parseCookie } from "cookie";
+import * as cookie from "cookie";
 import { ConflictError, NotAuthorizedError, verifyToken } from "../utils";
 import { chatInt } from "../modules/chats/chat";
 //Key    // Value
@@ -17,7 +17,7 @@ export const emitOnlineUsers = () => {
 
 export const socketAuthentication = async (socket: Socket, next: Function) => {
   try {
-    const cookies = parseCookie(socket.handshake.headers.cookie || "");
+    const cookies = cookie.parseCookie(socket.handshake.headers.cookie || "");
     if (!cookies) return next(new NotAuthorizedError("Unauthorized"));
     const accessToken = cookies.access_token;
     if (!accessToken) return next(new ConflictError("Access token not found"));
