@@ -26,6 +26,7 @@ import {
   ProviderEnum,
   RoleEnum,
   setLoginCookies,
+  setResetPasswordCookie,
   SubjectEnum,
   successHandler,
 } from "../../utils";
