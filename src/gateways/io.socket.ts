@@ -1,15 +1,26 @@
 import type { Server as HttpServer } from "node:http";
 import { Server, type Socket, type ExtendedError } from "socket.io";
 import * as cookie from "cookie";
-import { ConflictError, NotAuthorizedError, verifyToken } from "../utils";
+
+import {
+  decodeToken,
+  SignatureEnumLevels,
+  TokenEnum,
+} from "../utils";
+
 import { chatInt } from "../modules/chats/chat";
 
 export const connectedSockets = new Map<string, string[]>();
+
 let io: Server | null = null;
 
 export const emitOnlineUsers = () => {
   if (!io) return;
-  io.emit("online-users", Array.from(connectedSockets.keys()));
+
+  io.emit(
+    "online-users",
+    Array.from(connectedSockets.keys()),
+  );
 };
 
 export const socketAuthentication = async (
@@ -17,24 +28,35 @@ export const socketAuthentication = async (
   next: (error?: ExtendedError) => void,
 ) => {
   try {
-    const cookies = cookie.parse(socket.handshake.headers.cookie || "");
-    const accessToken = cookies.access_token;
+    const parsedCookies = cookie.parse(
+      socket.handshake.headers.cookie ?? "",
+    );
+
+    const accessToken = parsedCookies.access_token;
+    const signatureLevel =
+      parsedCookies.signature_level ??
+      SignatureEnumLevels.Bearer;
 
     if (!accessToken) {
-      return next(new ConflictError("Access token not found"));
+      return next(new Error("Access token not found"));
     }
 
-    const payload = await verifyToken({ token: accessToken });
+    const { user } = await decodeToken({
+      authorization: `${signatureLevel} ${accessToken}`,
+      tokenType: TokenEnum.access,
+    });
 
     socket.data.user = {
-      id: String(payload.id),
-      role: payload.role,
+      id: String(user._id),
+      role: user.role,
     };
-  } catch {
-    return next(new NotAuthorizedError("Unauthorized"));
-  }
 
-  next();
+    next();
+  } catch (error) {
+    console.error("Socket authentication error:", error);
+
+    next(new Error("Unauthorized socket connection"));
+  }
 };
 
 export const disconnection = (socket: Socket) => {
@@ -59,17 +81,30 @@ export const disconnection = (socket: Socket) => {
 };
 
 export const ioInit = (server: HttpServer) => {
-  const frontendOrigin = process.env.FE_URI?.trim();
+  const frontendOrigin = process.env.FE_URI
+    ?.trim()
+    .replace(/\/+$/, "");
 
   if (!frontendOrigin) {
     throw new Error("FE_URI is required");
   }
 
+  const allowedOrigins = [
+    frontendOrigin,
+    "http://localhost:5173",
+  ];
+
   io = new Server(server, {
+    path: "/socket.io",
+
     cors: {
-      origin: frontendOrigin,
+      origin: allowedOrigins,
       credentials: true,
+      methods: ["GET", "POST"],
     },
+
+    // مهم على Vercel
+    transports: ["websocket"],
   });
 
   io.use(socketAuthentication);
@@ -78,17 +113,22 @@ export const ioInit = (server: HttpServer) => {
     const userId = String(socket.data.user.id);
     const userTabs = connectedSockets.get(userId);
 
-    // Track sockets only after their connection has been accepted.
-    if (userTabs) userTabs.push(socket.id);
-    else connectedSockets.set(userId, [socket.id]);
+    if (userTabs) {
+      userTabs.push(socket.id);
+    } else {
+      connectedSockets.set(userId, [socket.id]);
+    }
 
-    console.log("connected:", userId, socket.id);
+    console.log("Socket connected:", userId, socket.id);
 
     disconnection(socket);
     emitOnlineUsers();
 
     socket.on("get-online-users", () => {
-      socket.emit("online-users", Array.from(connectedSockets.keys()));
+      socket.emit(
+        "online-users",
+        Array.from(connectedSockets.keys()),
+      );
     });
 
     chatInt(socket);
