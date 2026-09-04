@@ -201,14 +201,27 @@ class UserServices {
 
   verifyOTP = async (req: Request, res: Response) => {
     const { email, otp }: ConfirmEmailType = req.body;
-    if (!email) throw new BadRequestError("Email is required");
+
+    if (!email) {
+      throw new BadRequestError("Email is required");
+    }
 
     const user = await this.userModel.findOne({
       filter: { email },
     });
-    if (!user) throw new NotFoundError("User not found");
-    if (!user.confirmedAt) throw new ConflictError("User isn't confirmed");
-    if (!user.forgetPasswordOtp) throw new BadRequestError("OTP not found");
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (!user.confirmedAt) {
+      throw new ConflictError("User isn't confirmed");
+    }
+
+    if (!user.forgetPasswordOtp) {
+      throw new BadRequestError("OTP not found");
+    }
+
     if (
       !user.forgetPasswordOtpExpiredAt ||
       user.forgetPasswordOtpExpiredAt < new Date()
@@ -217,22 +230,37 @@ class UserServices {
       user.forgetPasswordOtpExpiredAt = undefined;
 
       await user.save();
+
       throw new BadRequestError("OTP is expired");
     }
-    console.log(decryption(user.forgetPasswordOtp) !== otp);
 
-    if (decryption(user.forgetPasswordOtp) !== otp)
+    if (decryption(user.forgetPasswordOtp) !== otp) {
       throw new BadRequestError("Invalid OTP");
+    }
 
     user.forgetPasswordOtp = undefined;
     user.forgetPasswordOtpExpiredAt = undefined;
-    clearResetPasswordCookie(res);
+
+    const resetToken = generateToken({
+      payload: {
+        userId: user._id.toString(),
+        purpose: "reset-password",
+      },
+      secret: process.env.RESET_PASSWORD_TOKEN_SIGNATURE as string,
+      options: {
+        expiresIn: Number(process.env.RESET_PASSWORD_TOKEN),
+      },
+    });
+
+    setResetPasswordCookie(res, resetToken);
 
     await user.save();
 
-    return successHandler({ res, message: "OTP verify successfully" });
+    return successHandler({
+      res,
+      message: "OTP verified successfully",
+    });
   };
-
   resetPassword = async (req: Request, res: Response) => {
     const { newPassword }: ResetPasswordType = req.body;
     if (!newPassword)
