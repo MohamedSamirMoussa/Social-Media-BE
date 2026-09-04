@@ -1,8 +1,14 @@
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import type { Express } from "express";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import {
   authRouter,
   chatRouter,
@@ -11,17 +17,19 @@ import {
   profileRouter,
   reactRouter,
 } from "./modules";
-import cookieParser from "cookie-parser";
+import { DBconnection } from "./DB";
 import { ioInit } from "./gateways";
 import { globalErrorHandling } from "./utils";
-import { DBconnection } from "./DB";
-const bootstrap = async (app: Express) => {
+
+const bootstrap = (app: Express) => {
   const frontendOrigin = process.env.FE_URI?.trim();
 
   if (!frontendOrigin) {
-    throw new Error("FR_URI is required");
+    throw new Error("FE_URI is required");
   }
-  await DBconnection();
+
+  app.set("trust proxy", 1);
+
   app.use(
     express.json(),
     helmet(),
@@ -38,10 +46,23 @@ const bootstrap = async (app: Express) => {
     }),
     cookieParser(),
   );
-  app.set("trust proxy", 1);
-  const port = Number(process.env.PORT);
 
-  // routes
+  // One initialization promise shared by requests in this server instance.
+  const databaseReady = Promise.resolve().then(() => DBconnection());
+
+  // Handle a rejection even if no request has reached the server yet.
+  // databaseReady remains rejected so request handlers also receive the error.
+  void databaseReady.catch((error) => {
+    console.error("Database initialization failed:", error);
+  });
+
+  app.use((_req, _res, next) => {
+    void databaseReady.then(
+      () => next(),
+      (error) => next(error),
+    );
+  });
+
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/profile", profileRouter);
   app.use("/api/v1/posts", PostRouter);
@@ -49,20 +70,30 @@ const bootstrap = async (app: Express) => {
   app.use("/api/v1/react", reactRouter);
   app.use("/api/v1/comment", commentRouter);
 
-  app.get("/health", (req, res) => {
-    res.status(200).json({
-      message: "Done",
-    });
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ message: "Done" });
   });
 
   app.use(globalErrorHandling);
-  const server = app.listen(port, () => {
-    console.log("====================================");
-    console.log(`Server is running on port ::: ${port}`);
-    console.log("====================================");
-  });
 
-  ioInit(server);
+  const server = createServer(app);
+  const socketServer = ioInit(server);
+
+  // Engine.IO handles socket requests outside the Express middleware chain.
+  socketServer.engine.use(
+    (
+      _req: IncomingMessage,
+      _res: ServerResponse,
+      next: (error?: Error) => void,
+    ) => {
+      void databaseReady.then(
+        () => next(),
+        () => next(new Error("Database initialization failed")),
+      );
+    },
+  );
+
+  return server;
 };
 
 export default bootstrap;

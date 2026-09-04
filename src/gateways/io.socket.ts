@@ -1,47 +1,45 @@
-import { Server as HttpServer } from "http";
-import { Socket, Server } from "socket.io";
+import type { Server as HttpServer } from "node:http";
+import { Server, type Socket, type ExtendedError } from "socket.io";
 import * as cookie from "cookie";
 import { ConflictError, NotAuthorizedError, verifyToken } from "../utils";
 import { chatInt } from "../modules/chats/chat";
-//Key    // Value
+
 export const connectedSockets = new Map<string, string[]>();
 let io: Server | null = null;
 
 export const emitOnlineUsers = () => {
   if (!io) return;
-
-  const onlineUsers = Array.from(connectedSockets.keys());
-
-  io.emit("online-users", onlineUsers);
+  io.emit("online-users", Array.from(connectedSockets.keys()));
 };
 
-export const socketAuthentication = async (socket: Socket, next: Function) => {
+export const socketAuthentication = async (
+  socket: Socket,
+  next: (error?: ExtendedError) => void,
+) => {
   try {
     const cookies = cookie.parse(socket.handshake.headers.cookie || "");
-    if (!cookies) return next(new NotAuthorizedError("Unauthorized"));
     const accessToken = cookies.access_token;
-    if (!accessToken) return next(new ConflictError("Access token not found"));
+
+    if (!accessToken) {
+      return next(new ConflictError("Access token not found"));
+    }
 
     const payload = await verifyToken({ token: accessToken });
 
     socket.data.user = {
-      id: payload.id,
+      id: String(payload.id),
       role: payload.role,
     };
-
-    const userTabs = connectedSockets.get(socket.data.user.id);
-    if (!userTabs) connectedSockets.set(socket.data.user.id, [socket.id]);
-    else userTabs.push(socket.id);
-    next();
-  } catch (error) {
-    throw next(new NotAuthorizedError("Unauthorized"));
+  } catch {
+    return next(new NotAuthorizedError("Unauthorized"));
   }
+
+  next();
 };
 
 export const disconnection = (socket: Socket) => {
   socket.on("disconnect", () => {
-    const userId = socket.data.user.id.toString();
-
+    const userId = String(socket.data.user.id);
     const userTabs = connectedSockets.get(userId);
 
     if (userTabs) {
@@ -62,8 +60,9 @@ export const disconnection = (socket: Socket) => {
 
 export const ioInit = (server: HttpServer) => {
   const frontendOrigin = process.env.FE_URI?.trim();
+
   if (!frontendOrigin) {
-    throw new Error("FR_URI is required");
+    throw new Error("FE_URI is required");
   }
 
   io = new Server(server, {
@@ -76,10 +75,16 @@ export const ioInit = (server: HttpServer) => {
   io.use(socketAuthentication);
 
   io.on("connection", (socket: Socket) => {
-    const userId = socket.data.user.id.toString();
+    const userId = String(socket.data.user.id);
+    const userTabs = connectedSockets.get(userId);
+
+    // Track sockets only after their connection has been accepted.
+    if (userTabs) userTabs.push(socket.id);
+    else connectedSockets.set(userId, [socket.id]);
 
     console.log("connected:", userId, socket.id);
 
+    disconnection(socket);
     emitOnlineUsers();
 
     socket.on("get-online-users", () => {
@@ -87,22 +92,15 @@ export const ioInit = (server: HttpServer) => {
     });
 
     chatInt(socket);
-
-    disconnection(socket);
   });
 
   return io;
 };
 
 export const getIo = () => {
-  try {
-    if (!io) {
-      throw new Error("Server doesn't initialized");
-    }
-
-    return io;
-  } catch (error) {
-    console.log(error);
-    throw new Error("Server io error:::", { cause: error });
+  if (!io) {
+    throw new Error("Socket.IO server is not initialized");
   }
+
+  return io;
 };

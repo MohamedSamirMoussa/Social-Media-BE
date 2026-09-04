@@ -1,10 +1,15 @@
-import { config } from "dotenv";
-import express from 'express'
-import { resolve } from 'path'
+import './src/env'
+import express from "express";
 import bootstrap from "./src/bootstrap";
 
+const app = express();
+const server = bootstrap(app);
 
-config({ path: resolve('./config/.env.development') })
-const app = express()
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT) || 3000;
+  server.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}
 
-bootstrap(app)
+export default server;
