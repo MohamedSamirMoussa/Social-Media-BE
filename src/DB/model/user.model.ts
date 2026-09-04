@@ -1,7 +1,12 @@
 import { model, Model, models, Schema } from "mongoose";
-import { encryption, hashed, IUserSchema, ProviderEnum, RoleEnum } from "../../utils";
+import {
+  encryption,
+  hashed,
+  IUserSchema,
+  ProviderEnum,
+  RoleEnum,
+} from "../../utils";
 import { HydratedDocument } from "mongoose";
-
 
 const schema = new Schema<IUserSchema>(
   {
@@ -19,18 +24,23 @@ const schema = new Schema<IUserSchema>(
     },
     email: {
       type: String,
-      required: true,
+      required: function (): any {
+        return this.provider === ProviderEnum.system;
+      },
       unique: true,
     },
     password: {
       type: String,
-      required: true,
+
+      required: function (): any {
+        return this.provider === ProviderEnum.system;
+      },
     },
     role: {
       type: String,
       required: true,
       enum: Object.values(RoleEnum),
-      default:RoleEnum.user
+      default: RoleEnum.user,
     },
     provider: {
       type: String,
@@ -38,14 +48,16 @@ const schema = new Schema<IUserSchema>(
       enum: Object.values(ProviderEnum),
       default: ProviderEnum.system,
     },
-    profileImage:{
-      secure_url:String,
-      public_id:String,
+    profileImage: {
+      secure_url: String,
+      public_id: String,
     },
-    coverImages:[{
-      secure_url:String,
-      public_id:String,
-    }],
+    coverImages: [
+      {
+        secure_url: String,
+        public_id: String,
+      },
+    ],
     changedCredentialsAt: Date,
     confirmEmailOTP: String,
     expiredOtpAt: Date,
