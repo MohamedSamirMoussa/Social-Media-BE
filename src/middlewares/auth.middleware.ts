@@ -1,50 +1,75 @@
 import { NextFunction, Request, Response } from "express";
 import {
-  BadRequestError,
-  ConflictError,
   decodeToken,
   NotAuthorizedError,
   RoleEnum,
   SignatureEnumLevels,
   TokenEnum,
   verifyToken,
+  ConflictError,
 } from "../utils";
 
-export const authentication = (tokenType: TokenEnum = TokenEnum.access) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    let header = req.headers.authorization;
+export const authentication = (
+  tokenType: TokenEnum = TokenEnum.access,
+) => {
+  return async (
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      let authorization = req.headers.authorization;
 
-    if (!header) {
-      const tokenName =
-        tokenType === TokenEnum.refresh ? "refresh_token" : "access_token";
-      const cookies = req.cookies[tokenName];
+      if (!authorization) {
+        const tokenName =
+          tokenType === TokenEnum.refresh
+            ? "refresh_token"
+            : "access_token";
 
-      if (cookies) {
-        const sigLevel =
-          req.cookies.signature_level || SignatureEnumLevels.Bearer;
-        header = `${sigLevel} ${cookies}`;
+        const cookieToken = req.cookies?.[tokenName] as
+          | string
+          | undefined;
+
+        if (cookieToken) {
+          const signatureLevel =
+            (req.cookies?.signature_level as SignatureEnumLevels) ||
+            SignatureEnumLevels.Bearer;
+
+          authorization = `${signatureLevel} ${cookieToken}`;
+        }
       }
+
+      if (!authorization) {
+        throw new NotAuthorizedError(
+          "Session is expired please login again",
+        );
+      }
+
+      const { user, decode } = await decodeToken({
+        authorization,
+        tokenType,
+      });
+
+      req.user = user;
+      req.decode = decode;
+
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    if (!header)
-      throw new BadRequestError("Session is expired please login again");
-
-    const { user, decode } = await decodeToken({
-      authorization: header,
-      tokenType,
-    });
-
-    req.user = user;
-    req.decode = decode;
-    next();
   };
 };
 
 export const authorization = (roles: RoleEnum[] = []) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return (
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ) => {
     if (!req.user) {
-      throw new NotAuthorizedError("Please login first");
+      return next(new NotAuthorizedError("Please login first"));
     }
+
     if (roles.length > 0 && !roles.includes(req.user.role)) {
       return next(
         new NotAuthorizedError(
@@ -52,22 +77,12 @@ export const authorization = (roles: RoleEnum[] = []) => {
         ),
       );
     }
+
     next();
   };
 };
 
-
-export const isAuthenticated = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const token = req.cookies.access_token;
-
-  if (!token) throw new NotAuthorizedError("Please login first");
-
-  return authentication(TokenEnum.access)(req, res, next);
-};
+export const isAuthenticated = authentication(TokenEnum.access);
 
 export const decodeResetToken = async (token: string) => {
   const decode = await verifyToken({
@@ -83,14 +98,23 @@ export const decodeResetToken = async (token: string) => {
 };
 
 export const isResetPassword = () => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const resetToken = req.cookies.reset_password_token;
-    if (!resetToken) throw new ConflictError("Token missing parts");
+  return async (
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const resetToken = req.cookies?.reset_password_token;
 
-    const decode = await decodeResetToken(resetToken);
+      if (!resetToken) {
+        throw new ConflictError("Token missing parts");
+      }
 
-    req.decode = decode;
+      req.decode = await decodeResetToken(resetToken);
 
-    next();
+      next();
+    } catch (error) {
+      next(error);
+    }
   };
 };

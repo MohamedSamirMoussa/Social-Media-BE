@@ -6,9 +6,10 @@ import {
 import type { Express } from "express";
 import express from "express";
 import helmet from "helmet";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+
 import {
   authRouter,
   chatRouter,
@@ -17,41 +18,55 @@ import {
   profileRouter,
   reactRouter,
 } from "./modules";
+
 import { DBconnection } from "./DB";
 import { ioInit } from "./gateways";
 import { globalErrorHandling } from "./utils";
 
 const bootstrap = (app: Express) => {
-  const frontendOrigin = process.env.FE_URI?.trim();
+  const frontendOrigin = process.env.FE_URI?.trim().replace(/\/$/, "");
 
   if (!frontendOrigin) {
     throw new Error("FE_URI is required");
   }
 
+  const allowedOrigins = [frontendOrigin, "http://localhost:5173"];
+
+  const corsOptions: CorsOptions = {
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  };
+
   app.set("trust proxy", 1);
 
+  app.use(express.json());
+  app.use(helmet());
+  app.use(cors(corsOptions));
+  app.use(cookieParser());
+
   app.use(
-    express.json(),
-    helmet(),
-    cors({
-      origin: frontendOrigin,
-      credentials: true,
-    }),
     rateLimit({
       windowMs: 60 * 60 * 1000,
       limit: 4000,
+      standardHeaders: true,
+      legacyHeaders: false,
       message: {
-        error: "Too many requests, please try later",
+        errMessage: "Too many requests, please try later",
       },
     }),
-    cookieParser(),
   );
 
-  // One initialization promise shared by requests in this server instance.
   const databaseReady = Promise.resolve().then(() => DBconnection());
 
-  // Handle a rejection even if no request has reached the server yet.
-  // databaseReady remains rejected so request handlers also receive the error.
   void databaseReady.catch((error) => {
     console.error("Database initialization failed:", error);
   });
@@ -61,6 +76,11 @@ const bootstrap = (app: Express) => {
       () => next(),
       (error) => next(error),
     );
+  });
+
+  app.use("/api/v1/auth", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
   });
 
   app.use("/api/v1/auth", authRouter);
@@ -79,7 +99,6 @@ const bootstrap = (app: Express) => {
   const server = createServer(app);
   const socketServer = ioInit(server);
 
-  // Engine.IO handles socket requests outside the Express middleware chain.
   socketServer.engine.use(
     (
       _req: IncomingMessage,
