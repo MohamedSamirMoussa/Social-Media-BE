@@ -11,10 +11,10 @@ import {
   profileRouter,
   reactRouter,
 } from "./modules";
-import { DBconnection } from "./DB";
 import cookieParser from "cookie-parser";
 import { ioInit } from "./gateways";
 import { globalErrorHandling } from "./utils";
+import { DBconnection } from "./DB";
 const bootstrap = async (app: Express) => {
   const frontendOrigin = process.env.FE_URI?.trim();
 
