@@ -19,6 +19,7 @@ import {
   decryption,
   detectSignature,
   generateOtp,
+  generateToken,
   IUserSchema,
   loginWithGoogle,
   NotAuthorizedError,
