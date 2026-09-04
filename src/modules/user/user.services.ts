@@ -34,17 +34,32 @@ class UserServices {
 
   private async handleLogin(res: Response, user: HUserDocument) {
     const { access_token, refresh_token } = await createLoginCredentials(user);
+
     const signatureLevel = await detectSignature(user.role);
-    const cookieOptions: CookieOptions = {
+
+    const isProduction = process.env.NODE_ENV === "production";
+
+    const baseCookieOptions: CookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: Number(process.env.ACCESS_TOKEN_TIME_OUT) * 1000,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      path: "/",
     };
 
-    res.cookie("access_token", access_token, cookieOptions);
-    res.cookie("refresh_token", refresh_token, cookieOptions);
-    res.cookie("signature_level", signatureLevel, cookieOptions);
+    res.cookie("access_token", access_token, {
+      ...baseCookieOptions,
+      maxAge: Number(process.env.ACCESS_TOKEN_TIME_OUT) * 1000,
+    });
+
+    res.cookie("refresh_token", refresh_token, {
+      ...baseCookieOptions,
+      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT),
+    });
+
+    res.cookie("signature_level", signatureLevel, {
+      ...baseCookieOptions,
+      maxAge: Number(process.env.REFRESH_TOKEN_TIME_OUT),
+    });
   }
 
   constructor() {}
