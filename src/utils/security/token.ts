@@ -170,6 +170,7 @@ export const decodeToken = async ({
 
 export const createRevokeToken = async (decode: JwtPayload) => {
   const tokenModel = new TokenRepository(TokenModel);
+
   if (!decode.jti) {
     throw new BadRequestError("Token jti is missing");
   }
@@ -177,16 +178,22 @@ export const createRevokeToken = async (decode: JwtPayload) => {
   if (!decode.id) {
     throw new BadRequestError("Token user id is missing");
   }
+
+  const expiresIn =
+    decode.exp ??
+    (decode.iat as number) + Number(process.env.REFRESH_TOKEN_TIME_OUT);
+
   const result = await tokenModel.create({
     data: {
-      jti: decode?.jti,
-      expiresIn:
-        (decode.iat as number) + Number(process.env.REFRESH_TOKEN_TIME_OUT),
+      jti: decode.jti,
+      expiresIn,
       userId: decode.id,
     },
   });
 
-  if (!result) throw new BadRequestError("Fail to revoke this token");
+  if (!result) {
+    throw new BadRequestError("Fail to revoke this token");
+  }
 
   return result;
 };
