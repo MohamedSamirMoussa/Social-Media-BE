@@ -32,10 +32,25 @@ export const socketAuthentication = async (
       socket.handshake.headers.cookie ?? "",
     );
 
-    const accessToken = parsedCookies.access_token;
+    const handshakeAuth = socket.handshake.auth as {
+      token?: unknown;
+      signatureLevel?: unknown;
+    };
+
+    const authToken =
+      typeof handshakeAuth.token === "string"
+        ? handshakeAuth.token
+        : undefined;
+    const authSignatureLevel =
+      handshakeAuth.signatureLevel === SignatureEnumLevels.admin
+        ? SignatureEnumLevels.admin
+        : SignatureEnumLevels.Bearer;
+
+    const accessToken = authToken ?? parsedCookies.access_token;
     const signatureLevel =
-      parsedCookies.signature_level ??
-      SignatureEnumLevels.Bearer;
+      authToken != null
+        ? authSignatureLevel
+        : (parsedCookies.signature_level ?? SignatureEnumLevels.Bearer);
 
     if (!accessToken) {
       return next(new Error("Access token not found"));

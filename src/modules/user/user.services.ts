@@ -15,6 +15,7 @@ import {
   compareHash,
   ConflictError,
   createLoginCredentials,
+  createSocketCredential,
   createRevokeToken,
   decryption,
   detectSignature,
@@ -328,9 +329,15 @@ class UserServices {
 
   getMe = async (req: Request, res: Response) => {
     if (!req.user) throw new NotAuthorizedError("User isn't logged");
-    return successHandler({
-      res,
+
+    const { socketToken, signatureLevel } = createSocketCredential(req.user);
+
+    return res.status(200).json({
+      message: "Done",
       data: req.user,
+      status: 200,
+      socketToken,
+      signatureLevel,
     });
   };
 

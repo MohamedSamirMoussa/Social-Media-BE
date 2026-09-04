@@ -107,6 +107,22 @@ export const createLoginCredentials = async (user: HUserDocument) => {
   return { access_token, refresh_token };
 };
 
+export const createSocketCredential = (user: HUserDocument) => {
+  const signatureLevel = detectSignature(user.role);
+  const signature = getSignature(signatureLevel);
+
+  const socketToken = generateToken({
+    payload: { id: user._id, role: user.role },
+    secret: signature.access_signature,
+    options: {
+      expiresIn: Number(process.env.ACCESS_TOKEN_TIME_OUT),
+      jwtid: randomUUID(),
+    },
+  });
+
+  return { socketToken, signatureLevel };
+};
+
 export const decodeToken = async ({
   authorization,
   tokenType = TokenEnum.access,
