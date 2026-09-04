@@ -1,0 +1,1 @@
+export {router as PostRouter} from "./posts.controller";
