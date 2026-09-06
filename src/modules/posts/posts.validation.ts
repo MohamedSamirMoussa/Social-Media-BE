@@ -2,11 +2,18 @@ import z from "zod";
 import { generalFields } from "../../middlewares";
 
 export const createPostBody = {
-    body: z.strictObject({
-        description: z.string().optional(),
-        allowComments: z.boolean().optional(),
-        tags: z.array(generalFields.objectId).optional(),
-    }),
+  body: z.strictObject({
+    description: z.string().optional(),
+    allowComments: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+    tags: z
+      .string()
+      .transform((value) => JSON.parse(value))
+      .pipe(z.array(generalFields.objectId))
+      .optional(),
+  }),
 };
 
 export const editPostBody = {
