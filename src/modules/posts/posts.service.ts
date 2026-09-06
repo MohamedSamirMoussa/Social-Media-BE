@@ -19,13 +19,14 @@ import {
   uploadFiles,
 } from "../../utils";
 import { Types } from "mongoose";
+import { CreatePostBodyType, EditPostBodyType, PostParamsType } from "./posts.dto";
 
 class PostService {
   private postModel = new PostRepository(PostModel);
   private userModel = new UserRepository(UserModel);
   private friendModel = new FriendRepository(FriendsModel);
   private reactModel = new ReactRepository(ReactModel);
-  constructor() {}
+  constructor() { }
 
   createPost = async (req: Request, res: Response) => {
     if (!req.user) {
@@ -34,7 +35,9 @@ class PostService {
 
     const userId = req.user._id;
 
-    const { description, allowComments, tags } = req.body;
+    if (!userId) throw new BadRequestError("Missing userId")
+
+    const { description, allowComments, tags }: CreatePostBodyType = req.body;
 
     const files = req.files as Express.Multer.File[] | undefined;
 
@@ -65,20 +68,22 @@ class PostService {
       if (friends.length !== tags.length)
         throw new BadRequestError("One or more tags are not your friends");
 
-      uniqueTags = Array.from(new Set(tags));
+      uniqueTags = Array.from(new Set(tags)).map((tag) =>
+        new Types.ObjectId(tag)
+      )
     }
 
     const attachments = files?.length
       ? await uploadFiles({
-          files: files.map((file: Express.Multer.File) => file.path),
-          path: `posts/${userId}`,
-        })
+        files: files.map((file: Express.Multer.File) => file.path),
+        path: `posts/${userId}`,
+      })
       : [];
 
     const post = await this.postModel.create({
       data: {
         ownerId: userId,
-        description,
+        description: description || "",
         allowComments: allowComments ?? true,
         attachments,
         tags: uniqueTags,
@@ -151,7 +156,7 @@ class PostService {
     });
   };
 
-  deletePost = async (req: Request, res: Response) => {
+  deletePost = async (req: Request<PostParamsType>, res: Response) => {
     if (!req.user) throw new ConflictError("Login first");
 
     const { postId } = req.params;
@@ -182,10 +187,10 @@ class PostService {
     });
   };
 
-  editPost = async (req: Request, res: Response) => {
+  editPost = async (req: Request<PostParamsType>, res: Response) => {
     if (!req.user) throw new ConflictError("Login first");
     const { postId } = req.params;
-    const { description } = req.body;
+    const { description }: EditPostBodyType = req.body;
     if (!postId) {
       throw new BadRequestError("Params missing");
     }

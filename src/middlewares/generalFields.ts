@@ -1,5 +1,5 @@
 import z from "zod";
-import { RoleEnum, StatusEnum } from "../utils";
+import { CommentEnum, RoleEnum, StatusEnum } from "../utils";
 
 export const generalFields = {
   firstName: z.string({ error: "First name is required" }),
@@ -22,4 +22,9 @@ export const generalFields = {
   status: z.enum(Object.values(StatusEnum), {
     error: "Status isn't valid",
   }),
+  content: z.string({ error: "No content exists" }),
+  onModel: z.enum(Object.values(CommentEnum), {
+    error: "onModel field is required"
+  }),
+  objectId: z.string().regex(/^[0-9a-fA-F]{24}$/, { error: "in-valid comment id" }),
 };

@@ -52,9 +52,19 @@ export const socketAuthentication = async (
         ? authSignatureLevel
         : (parsedCookies.signature_level ?? SignatureEnumLevels.Bearer);
 
+
     if (!accessToken) {
       return next(new Error("Access token not found"));
     }
+
+    console.log({
+      tokenSource: authToken ? "auth" : "cookie",
+      signatureLevel,
+      hasCookieToken: Boolean(
+        parsedCookies.access_token,
+      ),
+      hasAuthToken: Boolean(authToken),
+    });
 
     const { user } = await decodeToken({
       authorization: `${signatureLevel} ${accessToken}`,
@@ -96,30 +106,18 @@ export const disconnection = (socket: Socket) => {
 };
 
 export const ioInit = (server: HttpServer) => {
-  const frontendOrigin = process.env.FE_URI
-    ?.trim()
-    .replace(/\/+$/, "");
+  const frontendOrigin = String(process.env.FE_URI)
 
   if (!frontendOrigin) {
-    throw new Error("FE_URI is required");
+    throw new Error("Front-end gateway doesn't exist");
   }
 
-  const allowedOrigins = [
-    frontendOrigin,
-    "http://localhost:5173",
-  ];
-
   io = new Server(server, {
-    path: "/socket.io",
-
     cors: {
-      origin: allowedOrigins,
+      origin: frontendOrigin,
       credentials: true,
-      methods: ["GET", "POST"],
     },
-
-    // مهم على Vercel
-    transports: ["websocket"],
+    transports: ["websocket", "polling"]
   });
 
   io.use(socketAuthentication);
@@ -133,8 +131,6 @@ export const ioInit = (server: HttpServer) => {
     } else {
       connectedSockets.set(userId, [socket.id]);
     }
-
-    console.log("Socket connected:", userId, socket.id);
 
     disconnection(socket);
     emitOnlineUsers();

@@ -1,12 +1,8 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+
 import type { Express } from "express";
 import express from "express";
 import helmet from "helmet";
-import cors, { type CorsOptions } from "cors";
+import cors from "cors";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
@@ -23,34 +19,24 @@ import { DBconnection } from "./DB";
 import { ioInit } from "./gateways";
 import { globalErrorHandling } from "./utils";
 
-const bootstrap = (app: Express) => {
-  const frontendOrigin = process.env.FE_URI?.trim().replace(/\/$/, "");
+const bootstrap = async (app: Express) => {
+  const frontendOrigin = process.env.FE_URI as string;
 
   if (!frontendOrigin) {
     throw new Error("FE_URI is required");
   }
 
-  const allowedOrigins = [frontendOrigin, "http://localhost:5173"];
+  const port = Number(process.env.PORT)
 
-  const corsOptions: CorsOptions = {
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error(`Origin ${origin} is not allowed`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  };
 
   app.set("trust proxy", 1);
 
   app.use(express.json());
   app.use(helmet());
-  app.use(cors(corsOptions));
+  app.use(cors({
+    origin: frontendOrigin,
+    credentials: true
+  }));
   app.use(cookieParser());
 
   app.use(
@@ -65,23 +51,7 @@ const bootstrap = (app: Express) => {
     }),
   );
 
-  const databaseReady = Promise.resolve().then(() => DBconnection());
-
-  void databaseReady.catch((error) => {
-    console.error("Database initialization failed:", error);
-  });
-
-  app.use((_req, _res, next) => {
-    void databaseReady.then(
-      () => next(),
-      (error) => next(error),
-    );
-  });
-
-  app.use("/api/v1/auth", (_req, res, next) => {
-    res.setHeader("Cache-Control", "no-store");
-    next();
-  });
+  await DBconnection()
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/profile", profileRouter);
@@ -96,23 +66,13 @@ const bootstrap = (app: Express) => {
 
   app.use(globalErrorHandling);
 
-  const server = createServer(app);
-  const socketServer = ioInit(server);
+  const server = app.listen(port, () => {
+    console.log("====================");
+    console.log(`Server is running on port: ${port}`);
+    console.log("====================");
+  });
+  ioInit(server);
 
-  socketServer.engine.use(
-    (
-      _req: IncomingMessage,
-      _res: ServerResponse,
-      next: (error?: Error) => void,
-    ) => {
-      void databaseReady.then(
-        () => next(),
-        () => next(new Error("Database initialization failed")),
-      );
-    },
-  );
-
-  return server;
 };
 
 export default bootstrap;

@@ -6,16 +6,17 @@ import {
   successHandler,
   uploadFiles,
 } from "../../../utils";
+import { UploadAttachmentsType } from "./chat.dto";
 
 class ChatApiServices {
-  constructor() {}
+  constructor() { }
 
   uploadAttachments = async (req: Request, res: Response) => {
     if (!req.user) {
       throw new NotAuthorizedError("Please login first");
     }
 
-    const files = (req.files as Express.Multer.File[]) ?? [];
+    const files = (req.files as UploadAttachmentsType) ?? [];
 
     if (!files.length) {
       throw new BadRequestError("No attachments provided");
