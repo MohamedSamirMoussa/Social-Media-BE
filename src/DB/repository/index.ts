@@ -6,4 +6,5 @@ export * from "./conversation.repository";
 export * from "./messages.repository";
 export * from "./posts.repository";
 export * from "./react.repository";
+export * from "./block.repository";
 export * from "./comments.repository";

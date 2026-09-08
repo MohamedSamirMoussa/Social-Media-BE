@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { authentication } from "../../middlewares";
+import { authentication, authorization } from "../../middlewares";
 import profileServices from "./profile.services";
 // import * as validators from "./profile.validation";
 import { cloudFileUpload } from "../../utils/multer/multer.cloud";
 import { StorageEnum } from "../../utils";
+import { endpoint } from "./profile.authorized";
 export const router = Router();
 
 router.post(
@@ -42,3 +43,9 @@ router.get(
   // validation(validators.listRequests),
   profileServices.getAllUser,
 );
+
+router.put("/soft-delete", authentication(), profileServices.softDeleteAccount)
+router.delete("/:userId", authentication(), authorization(endpoint.hardDelete), profileServices.HardDelete)
+
+router.post("/block/:userId", authentication(), profileServices.blockUser)
+router.delete("/unblock/:userId", authentication(), profileServices.unblockUser)

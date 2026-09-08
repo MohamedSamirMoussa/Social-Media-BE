@@ -84,6 +84,8 @@ export interface IUserSchema {
       public_id: String;
     },
   ];
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export interface IFriendSchema {
