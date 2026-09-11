@@ -1,4 +1,4 @@
-import { model, Model, models, Schema } from "mongoose";
+import { model, Schema } from "mongoose";
 import {
   encryption,
   hashed,
@@ -7,6 +7,9 @@ import {
   RoleEnum,
 } from "../../utils";
 import { HydratedDocument } from "mongoose";
+import { PostModel } from "./posts.model";
+import { FriendsModel } from "./friends.model";
+import { ReactModel } from "./react.model";
 
 const schema = new Schema<IUserSchema>(
   {
@@ -64,6 +67,11 @@ const schema = new Schema<IUserSchema>(
     confirmedAt: Date,
     forgetPasswordOtp: String,
     forgetPasswordOtpExpiredAt: Date,
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: Date
   },
   {
     timestamps: true,
@@ -98,7 +106,34 @@ schema.pre("save", function () {
   }
 });
 
-export const UserModel: Model<IUserSchema> =
-  models.User || model("User", schema);
+schema.pre("deleteOne", async function () {
+  const filter = this.getFilter()
+
+  const userId = filter._id
+  if (!userId) return
+
+  await Promise.all([
+    PostModel.deleteMany({
+      ownerId: userId,
+    }),
+
+    ReactModel.deleteMany({
+      userId,
+    }),
+
+    FriendsModel.deleteMany({
+      $or: [
+        {
+          requestFromId: userId,
+        },
+        {
+          requestToId: userId,
+        },
+      ],
+    }),
+  ]);
+})
+
+export const UserModel = model("User", schema);
 
 export type HUserDocument = HydratedDocument<IUserSchema>;

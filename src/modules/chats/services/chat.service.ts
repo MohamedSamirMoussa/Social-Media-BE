@@ -1,17 +1,21 @@
 import { Socket } from "socket.io";
 import {
+  BlockModel,
+  BlockRepository,
   ConversationModel,
   ConversationRepository,
   HConversationDoc,
   MessageModel,
   MessageRepository,
 } from "../../../DB";
-import { ConversationTypeEnum, IMassage } from "../../../utils";
+import { BadRequestError, ConversationTypeEnum, IMassage, isBlockedBetweenUsers } from "../../../utils";
 import { connectedSockets, getIo } from "../../../gateways";
 
 export class ChatServices {
   private conversationModel = new ConversationRepository(ConversationModel);
   private messageModel = new MessageRepository(MessageModel);
+  private blockModel = new BlockRepository(BlockModel);
+
   async joinPrivateChat(socket: Socket, targetUserId: string) {
     let conversation = await this.conversationModel.findOne({
       filter: {
@@ -52,7 +56,21 @@ export class ChatServices {
 
     const senderId = socket.data.user.id;
 
+
+
     const conversation = await this.joinPrivateChat(socket, targetUserId);
+    const isBlocked = await isBlockedBetweenUsers({
+      blockModel: this.blockModel,
+      userOneId: senderId,
+      userTwoId: conversation._id
+    })
+
+    if (isBlocked) {
+      throw new BadRequestError(
+        "Action not allowed",
+      );
+    }
+
 
     const message = await this.messageModel.create({
       data: {
