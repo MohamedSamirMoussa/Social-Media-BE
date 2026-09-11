@@ -6,3 +6,4 @@ export * from "./messages.model";
 export * from "./posts.model";
 export * from "./comments.model";
 export * from "./react.model";
+export * from "./bot.model";

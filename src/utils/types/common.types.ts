@@ -130,3 +130,18 @@ export interface IComment {
   refId: Types.ObjectId;
   onModel: CommentEnum;
 }
+
+export enum AIroleEnum {
+  user = "user",
+  assistant = "assistant",
+}
+
+export interface Messages {
+  role: AIroleEnum;
+  content: string;
+}
+
+export interface IBot {
+  userId: Types.ObjectId;
+  messages: Messages[];
+}

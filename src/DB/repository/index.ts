@@ -7,3 +7,4 @@ export * from "./messages.repository";
 export * from "./posts.repository";
 export * from "./react.repository";
 export * from "./comments.repository";
+export * from "./bot.repository";

@@ -1,4 +1,3 @@
-
 import type { Express } from "express";
 import express from "express";
 import helmet from "helmet";
@@ -8,6 +7,7 @@ import cookieParser from "cookie-parser";
 
 import {
   authRouter,
+  botRouter,
   chatRouter,
   commentRouter,
   PostRouter,
@@ -26,17 +26,18 @@ const bootstrap = async (app: Express) => {
     throw new Error("FE_URI is required");
   }
 
-  const port = Number(process.env.PORT)
-
+  const port = Number(process.env.PORT);
 
   app.set("trust proxy", 1);
 
   app.use(express.json());
   app.use(helmet());
-  app.use(cors({
-    origin: frontendOrigin,
-    credentials: true
-  }));
+  app.use(
+    cors({
+      origin: frontendOrigin,
+      credentials: true,
+    }),
+  );
   app.use(cookieParser());
 
   app.use(
@@ -51,7 +52,7 @@ const bootstrap = async (app: Express) => {
     }),
   );
 
-  await DBconnection()
+  await DBconnection();
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/profile", profileRouter);
@@ -59,6 +60,7 @@ const bootstrap = async (app: Express) => {
   app.use("/api/v1/chats", chatRouter);
   app.use("/api/v1/react", reactRouter);
   app.use("/api/v1/comment", commentRouter);
+  app.use("/api/v1/bots", botRouter);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ message: "Done" });
@@ -72,7 +74,6 @@ const bootstrap = async (app: Express) => {
     console.log("====================");
   });
   ioInit(server);
-
 };
 
 export default bootstrap;

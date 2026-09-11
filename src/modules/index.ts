@@ -4,3 +4,4 @@ export * from "./chats";
 export * from "./posts";
 export * from "./reacts";
 export * from "./comments";
+export * from "./bots";

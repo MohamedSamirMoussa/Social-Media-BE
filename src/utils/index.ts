@@ -8,3 +8,4 @@ export * from "./nodemailer";
 export * from "./multer/cloudinary";
 export * from "./socialLogin/socialLogin";
 export * from "./cookies/cookies";
+export * from "./openai/openai";
