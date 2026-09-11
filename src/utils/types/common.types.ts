@@ -138,12 +138,14 @@ export enum AIroleEnum {
   assistant = "assistant",
 }
 
-export interface Messages {
+export interface IAIMessage {
   role: AIroleEnum;
   content: string;
 }
 
 export interface IBot {
   userId: Types.ObjectId;
-  messages: Messages[];
+  messages: IAIMessage[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }

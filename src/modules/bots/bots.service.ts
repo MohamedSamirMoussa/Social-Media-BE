@@ -1,11 +1,10 @@
 import type { Request, Response } from "express";
-import { Error as MongooseError, Types, isValidObjectId } from "mongoose";
+import { Types, isValidObjectId } from "mongoose";
 
 import {
   AIroleEnum,
   BadRequestError,
   createChatBot,
-  Messages,
   successHandler,
 } from "../../utils";
 
@@ -42,7 +41,6 @@ class ChatBots {
         conversationId: (
           conversation._id as unknown as Types.ObjectId
         ).toString(),
-        messages: conversation.messages || [],
       },
     });
   };
@@ -128,18 +126,7 @@ class ChatBots {
       },
     );
 
-    try {
-      await conversation.save();
-    } catch (error) {
-      if (error instanceof MongooseError.VersionError) {
-        return res.status(409).json({
-          errMessage:
-            "Conversation was updated. Please send your message again.",
-        });
-      }
-
-      throw error;
-    }
+    await conversation.save();
 
     return successHandler({
       res,

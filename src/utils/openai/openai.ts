@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { Messages } from "../types/common.types";
+import { IAIMessage } from "../types/common.types";
+
 
 const instructions = `
 You are the customer support assistant for a social media application.
@@ -54,7 +55,7 @@ Assistant:
 لو ظهرلك خطأ أثناء رفع الصورة، ابعتلي رسالة الخطأ من غير أي بيانات شخصية.
 `;
 
-export const createChatBot = async (input: Messages[]) => {
+export const createChatBot = async (input: IAIMessage[]) => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is missing");

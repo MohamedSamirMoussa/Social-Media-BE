@@ -1,8 +1,26 @@
 import { model, Schema } from "mongoose";
-import { AIroleEnum } from "../../utils";
-import type { IBot } from "../../utils";
+import { AIroleEnum, type IAIMessage, type IBot } from "../../utils";
 
-const schema = new Schema<IBot>(
+const messageSchema = new Schema<IAIMessage>(
+  {
+    role: {
+      type: String,
+      enum: Object.values(AIroleEnum),
+      required: true,
+    },
+
+    content: {
+      type: String,
+      required: true,
+      maxlength: 16000,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const botSchema = new Schema<IBot>(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -10,20 +28,10 @@ const schema = new Schema<IBot>(
       index: true,
     },
 
-    messages: [
-      {
-        role: {
-          type: String,
-          enum: [AIroleEnum.user, AIroleEnum.assistant],
-          required: true,
-        },
-        content: {
-          type: String,
-          required: true,
-          maxlength: 16000,
-        },
-      },
-    ],
+    messages: {
+      type: [messageSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -31,4 +39,4 @@ const schema = new Schema<IBot>(
   },
 );
 
-export const BotModel = model<IBot>("Bot", schema);
+export const BotModel = model<IBot>("Bot", botSchema);
