@@ -19,8 +19,9 @@ const getTimeInMilliseconds = (
 
 export const baseCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? "none" : "lax",
+  secure: true,
+  // sameSite: isProduction ? "none" : "lax",
+  sameSite:  "none",
   path: "/",
 };
 

@@ -50,7 +50,7 @@ class UserServices {
     });
   }
 
-  constructor() {}
+  constructor() { }
 
   signup = async (req: Request, res: Response) => {
     const { firstName, lastName, password, email }: SignupType = req.body;
@@ -122,7 +122,7 @@ class UserServices {
     if (!user) throw new BadRequestError("This account doesn't exists");
     if (!user.confirmedAt)
       throw new ConflictError("Verify your account please check your email");
-    if (user.password && !(await compareHash(password, user.password)))
+    if (user.password || !(await compareHash(password, user.password)))
       throw new BadRequestError("Invalid credentials");
     await this.handleLogin(res, user);
     return successHandler({
