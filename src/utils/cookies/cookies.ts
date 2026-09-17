@@ -1,8 +1,8 @@
 import type { CookieOptions, Response } from "express";
 import { SignatureEnumLevels } from "../security/token";
 
-const isProduction =
-  process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+// const isProduction =
+//   process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 
 const getTimeInMilliseconds = (
   value: string | undefined,
