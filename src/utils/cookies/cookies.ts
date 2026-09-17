@@ -21,7 +21,7 @@ export const baseCookieOptions: CookieOptions = {
   httpOnly: true,
   secure: true,
   // sameSite: isProduction ? "none" : "lax",
-  sameSite:  "none",
+  sameSite:  "lax",
   path: "/",
 };
 
