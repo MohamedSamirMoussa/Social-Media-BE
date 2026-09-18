@@ -1,8 +1,8 @@
 import type { CookieOptions, Response } from "express";
 import { SignatureEnumLevels } from "../security/token";
 
-// const isProduction =
-//   process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 
 const getTimeInMilliseconds = (
   value: string | undefined,
@@ -20,8 +20,7 @@ const getTimeInMilliseconds = (
 export const baseCookieOptions: CookieOptions = {
   httpOnly: true,
   secure: true,
-  // sameSite: isProduction ? "none" : "lax",
-  sameSite:  "lax",
+  sameSite: isProduction ? "none" : "lax",
   path: "/",
 };
 
