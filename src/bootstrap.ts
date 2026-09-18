@@ -52,7 +52,15 @@ const bootstrap = async (app: Express) => {
     }),
   );
 
-  await DBconnection();
+  app.use(async (_req, res, next)=>{
+    try {
+      await DBconnection();
+    } catch (error) {
+      return next(error)
+    }
+
+    next()
+  })
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/profile", profileRouter);
