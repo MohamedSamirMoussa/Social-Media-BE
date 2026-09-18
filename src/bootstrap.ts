@@ -18,6 +18,7 @@ import {
 import { DBconnection } from "./DB";
 import { ioInit } from "./gateways";
 import { globalErrorHandling } from "./utils";
+import { createServer } from "node:http";
 
 const bootstrap = async (app: Express) => {
   const frontendOrigin = process.env.FE_URI as string;
@@ -25,8 +26,6 @@ const bootstrap = async (app: Express) => {
   if (!frontendOrigin) {
     throw new Error("FE_URI is required");
   }
-
-  const port = Number(process.env.PORT);
 
   app.set("trust proxy", 1);
 
@@ -52,15 +51,15 @@ const bootstrap = async (app: Express) => {
     }),
   );
 
-  app.use(async (_req, res, next)=>{
+  app.use(async (_req, res, next) => {
     try {
       await DBconnection();
     } catch (error) {
-      return next(error)
+      return next(error);
     }
 
-    next()
-  })
+    next();
+  });
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/profile", profileRouter);
@@ -76,12 +75,19 @@ const bootstrap = async (app: Express) => {
 
   app.use(globalErrorHandling);
 
-  const server = app.listen(port, () => {
-    console.log("====================");
-    console.log(`Server is running on port: ${port}`);
-    console.log("====================");
-  });
+  const server = createServer(app);
+
   ioInit(server);
+
+  if (process.env.VERCEL !== "1") {
+    const port = Number(process.env.PORT || 3000);
+
+    server.listen(port, () => {
+      console.log(`Server is running on port: ${port}`);
+    });
+  }
+
+  return server;
 };
 
 export default bootstrap;
